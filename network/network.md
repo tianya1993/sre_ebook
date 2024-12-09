@@ -8,11 +8,39 @@ OSI 网络模型 VS TCP/IP 模型
 
 网络到 IO    微服务
 
-    中间件
+中间件
 
 ## 2、网络协议
 
 ### 2.1 IP 协议
+
+![1733587484752](image/network/1733587484752.png)
+![1733588411312](image/network/1733588411312.png)
+Linux  IP 协议数据结构
+
+```c
+struct iphdr {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8 ihl : 4,
+	version : 4; //V4 版本
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	__u8 version : 4, ihl : 4;
+#else
+#error "Please fix <asm/byteorder.h>"
+#endif
+	__u8 tos; //TOS  服务质量 QOS
+	__be16 tot_len; // 包括报头在内的数据包总长度，单位位字节 显示拥塞的通知
+	__be16 id; // ipv4 报头标识（对于分段来讲，id字节非常重要，对SKB进行分段重组时，对于分段后的数据包，则要根据各个分段的id进行重组）
+	__be16 frag_off; //分段偏移量 长度16位 001 表示后面还有其他分段  010 表示不分段  100 表示拥塞
+	__u8 ttl;
+	__u8 protocol; //协议位 例如TCP 6  UDP 17 等
+	__sum16 check; //校验和 IPV4的报头计算得到·
+	__be32 saddr; // 源地址
+	__be32 daddr; //目的地址
+	/*The options start here. */
+};
+
+```
 
 ### 2.2 TCP 协议
 
@@ -38,57 +66,58 @@ TCP 首部
 Linux  TCP 的协议数据结构
 ![1733583467647](image/network/1733583467647.png)
 
-  ```
+```
     struct tcphdr {
-	__be16	source;
-	__be16	dest;
-	__be32	seq;
-	__be32	ack_seq;
+  	__be16	source;
+  	__be16	dest;
+  	__be32	seq;
+  	__be32	ack_seq;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u16	res1:4,
-		doff:4,
-		fin:1,
-		syn:1,
-		rst:1,
-		psh:1,
-		ack:1,
-		urg:1,
-		ece:1,
-		cwr:1;
+  	__u16	res1:4,
+  		doff:4,
+  		fin:1,
+  		syn:1,
+  		rst:1,
+  		psh:1,
+  		ack:1,
+  		urg:1,
+  		ece:1,
+  		cwr:1;
 #elif defined(__BIG_ENDIAN_BITFIELD)
-	__u16	doff:4,
-		res1:4, //
-		cwr:1,
-		ece:1,
-		urg:1,
-		ack:1,
-		psh:1,
-		rst:1,
-		syn:1,
-		fin:1;
+  	__u16	doff:4,
+  		res1:4, //
+  		cwr:1,
+  		ece:1,
+  		urg:1,
+  		ack:1,
+  		psh:1,
+  		rst:1,
+  		syn:1,
+  		fin:1;
 #else
 #error	"Adjust your <asm/byteorder.h> defines"
 #endif
-	__be16	window;
-	__sum16	check;
-	__be16	urg_ptr;
+  	__be16	window;
+  	__sum16	check;
+  	__be16	urg_ptr;
 };
 
-  ```
+```
 
 在 Linux 的 TCP 状态中，CWR 和 ECE 是 TCP 头部中的两个控制位，用于实现拥塞控制。它们属于 TCP 的拥塞控制机制，具体作用如下：
+
 1. CWR (Congestion Window Reduced)
-值：1 位
-作用：表示发送方已减少拥塞窗口（Congestion Window），并且通知接收方网络拥塞已经被减轻。该标志位在发送方检测到拥塞并采取措施（如减少窗口大小）后设置。
-使用场景：当发送方收到带有 ECE 标志的 ACK 时，会将 CWR 标志设置为 1，以表明它已经响应了拥塞情况，并已调整其发送策略。
+   值：1 位
+   作用：表示发送方已减少拥塞窗口（Congestion Window），并且通知接收方网络拥塞已经被减轻。该标志位在发送方检测到拥塞并采取措施（如减少窗口大小）后设置。
+   使用场景：当发送方收到带有 ECE 标志的 ACK 时，会将 CWR 标志设置为 1，以表明它已经响应了拥塞情况，并已调整其发送策略。
 2. ECE (ECN Echo)
-值：1 位
-作用：用于指示网络中发生了拥塞。该标志位在接收方检测到网络拥塞并通过 ECN（Explicit Congestion Notification）机制接收到标记的数据包时设置。
-使用场景：当 TCP 连接中的数据包经过一个支持 ECN 的路由器时，路由器可以标记这些数据包以指示拥塞，而不是丢弃它们。接收方在收到这些标记的数据包时，会在 TCP ACK 中设置 ECE 标志，以告知发送方网络出现了拥塞。
-总结
-CWR 和 ECE 标志是 ECN 机制的一部分，旨在提高网络的拥塞控制能力。
-ECE 用于通知发送方网络拥塞的发生，而 CWR 则指示发送方已采取措施降低拥塞窗口以应对这一情况。
-通过使用这两个标志，TCP 能够更有效地管理网络流量，减少数据包丢失，提高网络的整体性能
+   值：1 位
+   作用：用于指示网络中发生了拥塞。该标志位在接收方检测到网络拥塞并通过 ECN（Explicit Congestion Notification）机制接收到标记的数据包时设置。
+   使用场景：当 TCP 连接中的数据包经过一个支持 ECN 的路由器时，路由器可以标记这些数据包以指示拥塞，而不是丢弃它们。接收方在收到这些标记的数据包时，会在 TCP ACK 中设置 ECE 标志，以告知发送方网络出现了拥塞。
+   总结
+   CWR 和 ECE 标志是 ECN 机制的一部分，旨在提高网络的拥塞控制能力。
+   ECE 用于通知发送方网络拥塞的发生，而 CWR 则指示发送方已采取措施降低拥塞窗口以应对这一情况。
+   通过使用这两个标志，TCP 能够更有效地管理网络流量，减少数据包丢失，提高网络的整体性能
 
 ### 2.2.1 TCP 协议之三次握手
 
@@ -113,7 +142,7 @@ ECE 用于通知发送方网络拥塞的发生，而 CWR 则指示发送方已�
 
 1. 确保所有的 ACK 包都能正常的收到，如果最后一个 ACK 没收到，将会重传 FIN 包，实现了全双工的连接可靠关闭
 2. 使过时的重复报文段作废，保证这次连接的重复数据段从网络中消失
-3.
+3. 
 
 第一点：如果主机 1 直接 CLOSED 了，那么由于 IP 协议的不可靠性或者是其它网络原因，导致主机 2 没有收到主机 1 最后回复的 ACK。那么主机 2 就会在超时之后继续发送 FIN，此时由于主机 1 已经 CLOSED 了，就找不到与重发的 FIN 对应的连接。所以，主机 1 不是直接进入 CLOSED，而是要保持 TIME_WAIT，当再次收到 FIN 的时候，能够保证对方收到 ACK，最后正确的关闭连接。
 
@@ -255,13 +284,13 @@ TCP/IP 协议提前不知道网络环境是什么样的，是很快，还是很�
 
 所以策略是自适应的，基于历史数据的预测 +ACK 反馈快慢来调整，这个调整可能有效，也有可能无效
 
-### 2.2.5 分包和粘包
+### 2.2.5  分包和粘包
 
 ![image-20241130124916929](../images/images:image-20241130124916929.png)
 
 ![image-20241130125143093](../images/.:images:image-20241130125143093.png)
 
-### 2.2.6 Linux 全连接队列和半连接队列
+### 2.2.6Linux 全连接队列和半连接队列
 
  在 Linux 系统中，网络连接的管理是通过 TCP 协议的全连接队列和半连接队列来实现的。这两个队列都是用于处理 TCP 连接的，但它们的功能和作用不同。
   **半连接队列** 半连接队列用于存放处于建立连接过程中的 TCP 连接请求。具体来说，当客户端发送一个 SYN 包以请求与服务器建立连接时，服务器会将该请求放入半连接队列中，等待客户端确认。
@@ -306,7 +335,6 @@ echo 128 | sudo tee /proc/sys/net/core/somaxconn
 1. 如何建立一个唯一的 TCP 连接
    通过源主机 IP、源主机端口，目的主机 IP 目的主机端口 四元组建立一个唯一的 TCP 连接
 2. 如何确保可靠传输
-
    TCP（传输控制协议）是一种面向连接的协议，提供可靠的数据传输。TCP 是通过序列号、检验和、确认应答信号、重发机制、连接管理、窗口控制、流量控制、拥塞控制一起保证 TCP 传输的可靠性的。
 
 - 建立双工连接
@@ -367,6 +395,37 @@ echo 128 | sudo tee /proc/sys/net/core/somaxconn
    | Establish | 服务器发送客户端不收 | 4.82k  | 3.39k                      | 服务器发送缓存区及时回收了，客户端多了 size    |
    | Establish | 服务器发送客户端接收 | 3.56k  | 客户端接收缓存区用完回收了 |                                                |
    | Time_Wait | 无                   | 0.5k   | 0                          | Time_wait 下会回收无用对象，服务端就直接关闭了 |
+7. 为什么服务端程序都需要先 listen 一下？
+   申请和初始化接收队列，包括全连接队列和半连接队列，其中全连接队列是个链表，而半连接由于需要快速地查找，所以使用的一个哈希表。
+8. 半连接队列和全连接队列的长度如何确定
+9. Connot assign  requested address 这个报错是什么意思，如果再次出现该怎么解决
+   客户端端口不够，可以调整 net.ipv4.ip_local_port_range 的范围默认为 32768 61000  可以使用的范围为 28232 个
+10. 一个客户端端口可以同时用着两条连接上吗？
+    check_established 的作用就是检测现有的 TCP 连接中是否有四元组和要建立的连接四元组是否一致，如果不完全一致，那么该端口仍然可以使用。
+    **注意**： 一个客户端最大能建立的连接数并不是 65535，主要服务端足够多，单机发布百万连接是没问题任何问题
+11. 服务端 半连接 / 全连接队列满了 会怎么样
+12. 新连接的 Socket 内核对象是什么时候建立的？
+13. 建立一条 TCP 连接需要消耗多长时间
+    1.5 RTT
+14. 服务器负载很正常，但是 CPU 被打满了怎么回事
+15. 如何实现单机百万并发
+    TCP 的建立 socket 的四元组  源 IP  目的 IP 源端口 目的端口
+    - 服务端固定端口，客户端多 IP 方式  例如子接口
+
+    -  客户端端口复用 服务端多 端口或者多IP  例如服务端多实例
+   几个核心参数
+
+```bash
+  vi    /etc/systctl.conf
+ fs.file-max=1200000
+ fs.nr_open=1200000
+ sysctl -p
+
+vi  /etc/security/limits.conf
+*  soft  nofile  1100000
+*  hard   nofile  1100000
+
+```
 
 ### 2.3 UDP 协议
 
@@ -665,9 +724,9 @@ TLS（传输层安全协议）的握手过程是建立安全连接的关键步�
 - 源地址 hash SH    Source Hashing，实现 session sticky，源 IP 地址 hash；将来自于同一个 IP 地址的请求始终发往 第一次挑中的 RS，从而实现会话绑定
 - 目的地址 hash DH  Destination Hashing；目标地址哈希，第一次轮询调度至 RS，后续将发往同一个目标地址的请 求始终转发至第一次挑中的 RS，典型使用场景是正向代理缓存场景中的负载均衡，如：宽带运营商
 - 最少连接 LC  least connections（最少链接算法）适用于长连接应用 Overhead（负载值）=activeconns（活动链接数） x 256+ inactiveconns（非活 动链接数）
--
+- 
 - 加权最少链接 WLC  默认调度方法 Overhead=(activeconns x 256+inactiveconns)/weight
--
+- 
 - 动态调度算法  主要根据 RS 当前的负载状态及调度算法进行调度 Overhead=value 较小的 RS 会被调度
 - SEQ  SED：Shortest Expection Delay（最短期望延迟算法）
   初始连接高权重优先 Overhead=(activeconns+1+inactiveconns) x 256/weight
