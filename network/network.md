@@ -352,34 +352,12 @@ echo  128 > /proc/sys/net/ipv4/tcp_max_syn_backlog
 
 ```
 
-```bash
-4.19.177内核   
-执行之后 sysctl -w   net.core.somaxcon=512 
+半连接数的计算方式和内核版本有关系  3.X 和 4.X 的区别较大，在 3.X 的版本中和 somaxconn、tcp_max_syn_backlog 以及服务端监听底层 listen() 监听的的时候传入的 backlog 大小有关系。
 
-[root@harbborserver ~]# ss -nl |grep  :8888
-tcp    LISTEN     400
+全连接队列最大长度控制 TCP 全连接队列的最大长度由 min(somaxconn, backlog) 控制，其中：
 
-```
-
-```bash
-
-[root@harbborserver ~]# ss -nlt
-State      Recv-Q Send-Q                                                         Local Address:Port                                                                        Peer Address:Port
-LISTEN     0      128                                                                        *:22                                                                                     *:*
-LISTEN     0      100                                                                127.0.0.1:25                                                                                     *:*
-LISTEN     0      128                                                                       :::22                                                                                    :::*
-LISTEN     513    512                                                                       :::8888                                                                                  :::*
-LISTEN     0      100                                                                      ::1:25
-
-
-当接收队列大于发送队列   溢出
-[root@harbborserver ~]# netstat -s | grep -i "listen"
-    156962696 times the listen queue of a socket overflowed
-    156962696 SYNs to LISTEN sockets dropped
-
-```
-
-半连接数的计算方式和内核版本有关系  3.X 和 4.X 的区别较大，在 3.X 的版本中和 somaxconn、tcp_max_syn_backlog 以及服务端监听底层 listen() 监听的的时候传入的 backlog 大小有关系，go 语言中 backlog 默认的值为 somaxconn 的大小即 /proc/sys/net/core/somaxconn 文件中值的大小，其中 nginx 的可以在 listen 后面添加。
+somaxconn 是 Linux 内核参数，由 /proc/sys/net/core/somaxconn 指定
+backlog 是 TCP 协议中 listen 函数的参数之一，即 int listen(int sockfd, int backlog) 函数中的 backlog 大小。在 Golang 中，listen 的 backlog 参数使用的是 /proc/sys/net/core/somaxconn 文件中的值。其中 nginx 的可以在 listen 后面添加。
 
 ```dotnetcli
  server {
@@ -401,6 +379,101 @@ LISTEN     0      100                                                           
     }
 
 ```
+
+通过 ss 命令可以查看到全连接队列的信息
+
+```dotnetcli
+ -n 不解析服务名称
+ -t 只显示 tcp sockets
+ -l 显示正在监听 (LISTEN) 的 sockets
+Usage: ss [ OPTIONS ]
+       ss [ OPTIONS ] [ FILTER ]
+   -h, --help          帮助
+   -V, --version       版本信息
+   -n, --numeric       不解析服务名称
+   -r, --resolve       解析主机名
+   -a, --all           display all sockets
+   -l, --listening    显示监听的socket
+   -o, --options       show timer information
+   -e, --extended      show detailed socket information
+   -m, --memory        show socket memory usage
+   -p, --processes     show process using socket
+   -i, --info          show internal TCP information
+   -s, --summary       show socket usage summary
+   -b, --bpf           show bpf filter socket information
+   -Z, --context       display process SELinux security contexts
+   -z, --contexts      display process and socket SELinux security contexts
+   -N, --net           switch to the specified network namespace name
+
+   -4, --ipv4          display only IP version 4 sockets
+   -6, --ipv6          display only IP version 6 sockets
+   -0, --packet        display PACKET sockets
+   -t, --tcp           display only TCP sockets
+   -S, --sctp          display only SCTP sockets
+   -u, --udp           display only UDP sockets
+   -d, --dccp          display only DCCP sockets
+   -w, --raw           display only RAW sockets
+   -x, --unix          display only Unix domain sockets
+   -f, --family=FAMILY display sockets of type FAMILY
+
+```
+
+```dotnetcli
+
+
+[root@10-57-31-214 ~]# ss -lnt
+State                   Recv-Q                  Send-Q                                   Local Address:Port                                     Peer Address:Port                  Process
+LISTEN                  0                       511                                            0.0.0.0:443                                           0.0.0.0:*
+LISTEN                  0                       4096                                           0.0.0.0:80                                            0.0.0.0:*
+LISTEN                  0                       128                                            0.0.0.0:22                                            0.0.0.0:*
+LISTEN                  0                       511                                               [::]:80                                               [::]:*
+LISTEN                  0                       128                                               [::]:22                                               [::]:*
+LISTEN                  0                       65535                                                *:1988                                                *:*
+[root@10-57-31-214 ~]# ss -lnt  |grep   4096
+LISTEN 0      4096         0.0.0.0:80        0.0.0.0:*
+[root@10-57-31-214 ~]# ss -lnt  |grep   "0.0.0.0:80"
+LISTEN 0      4096         0.0.0.0:80        0.0.0.0:*
+[root@10-57-31-214 ~]#
+
+```
+
+```bash
+语法 netstat [-acCeFghilMnNoprstuvVwx][-A<网络类型>][–ip] 参数说明：
+	-a,--–all 显示所有连线中的Socket。
+	-A<网络类型>或–<网络类型> 列出该网络类型连线中的相关地址。
+	-c,--continuous 持续列出网络状态。
+	-C,--cache 显示路由器配置的快取信息。
+	-e,--extend 显示网络其他相关信息。
+	-F,--fib 显示FIB。
+	-g,--groups 显示多重广播功能群组组员名单。
+	-h,--help 在线帮助。
+	-i,--interfaces 显示网络界面信息表单。
+	-l,--listening 显示监控中的服务器的Socket。
+	-M,--masquerade 显示伪装的网络连线。
+	-n,--numeric 直接使用IP地址，而不通过域名服务器。
+	-N,--netlink或–symbolic 显示网络硬件外围设备的符号连接名称。
+	-o,--timers 显示计时器。
+	-p,--programs 显示正在使用Socket的程序识别码和程序名称。
+	-r,--route 显示Routing Table。
+	-s,--statistics 显示网络工作信息统计表。
+	-t,--tcp 显示TCP传输协议的连线状况。
+	-u,--udp 显示UDP传输协议的连线状况。
+	-v,--verbose 显示指令执行过程。
+	-V,--version 显示版本信息。
+	-w,--raw 显示RAW传输协议的连线状况。
+	-x,--unix 此参数的效果和指定"-A unix"参数相同。
+	--ip,--inet 此参数的效果和指定"-A inet"参数相同。
+```
+
+对于 LISTEN 状态的 socket
+
+Recv-Q：当前全连接队列的大小，即已完成三次握手等待应用程序 accept() 的 TCP 链接
+Send-Q：全连接队列的最大长度，即全连接队列的大小
+对于非 LISTEN 状态的 socket
+
+Recv-Q：已收到但未被应用程序读取的字节数
+Send-Q：已发送但未收到确认的字节数
+参考资料：[https://zhuanlan.zhihu.com/p/514391329]
 
 ### 2.2.10 其他问题
 
