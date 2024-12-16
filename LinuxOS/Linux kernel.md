@@ -88,3 +88,60 @@ Linux 内核设计与实现
 ## 4、IO
 
 ## 5. Performance
+
+## IO模型
+同步阻塞  
+异步非阻塞  
+IO多路复用 
+
+- select的原理  
+**大名鼎鼎的select**  
+![1734362210018](image/Linuxkernel/1734362210018.png)
+
+![1734362246276](image/Linuxkernel/1734362246276.png)
+
+![1734362276798](image/Linuxkernel/1734362276798.png)
+![1734362371587](image/Linuxkernel/1734362371587.png)
+![1734362476279](image/Linuxkernel/1734362476279.png)
+
+![1734362930116](image/Linuxkernel/1734362930116.png)
+![1734362968713](image/Linuxkernel/1734362968713.png)
+![1734363040998](image/Linuxkernel/1734363040998.png)
+
+
+一个小问题，普通文件可以使用select/poll/epoll来监听文件变化吗？
+不能
+ 原因
+ 1、普通文件一直是可写的
+
+
+![1734363214402](image/Linuxkernel/1734363214402.png)
+ 
+
+![1734363368788](image/Linuxkernel/1734363368788.png)
+
+![1734363649886](image/Linuxkernel/1734363649886.png)
+
+![1734363831606](image/Linuxkernel/1734363831606.png)
+
+
+循环检测事件
+
+
+- linux内核的等待队列
+![1734364179550](image/Linuxkernel/1734364179550.png)
+双向链表  
+
+![1734364254023](image/Linuxkernel/1734364254023.png)
+![1734364294494](image/Linuxkernel/1734364294494.png)
+![1734364318623](image/Linuxkernel/1734364318623.png)
+![1734364428423](image/Linuxkernel/1734364428423.png)
+- epoll的原理和背后的数据结构
+- epoll 水平触发 边缘触发的区别
+
+- epoll  VS  select性能上的差异点
+
+
+零拷贝
+
+内核旁路
