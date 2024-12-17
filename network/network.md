@@ -148,7 +148,7 @@ Linux  TCP 的协议数据结构
 
 1. 确保所有的 ACK 包都能正常的收到，如果最后一个 ACK 没收到，将会重传 FIN 包，实现了全双工的连接可靠关闭
 2. 使过时的重复报文段作废，保证这次连接的重复数据段从网络中消失
-3. 
+3.
 
 第一点：如果主机 1 直接 CLOSED 了，那么由于 IP 协议的不可靠性或者是其它网络原因，导致主机 2 没有收到主机 1 最后回复的 ACK。那么主机 2 就会在超时之后继续发送 FIN，此时由于主机 1 已经 CLOSED 了，就找不到与重发的 FIN 对应的连接。所以，主机 1 不是直接进入 CLOSED，而是要保持 TIME_WAIT，当再次收到 FIN 的时候，能够保证对方收到 ACK，最后正确的关闭连接。
 
@@ -471,9 +471,14 @@ Recv-Q：当前全连接队列的大小，即已完成三次握手等待应用�
 Send-Q：全连接队列的最大长度，即全连接队列的大小
 对于非 LISTEN 状态的 socket
 
-Recv-Q：已收到但未被应用程序读取的字节数
-Send-Q：已发送但未收到确认的字节数
 参考资料：[https://zhuanlan.zhihu.com/p/514391329]
+
+### 2.7 半连接和全连接参数验证实验
+
+**半连接验证方法**
+1、可以用 iptales 拦截客户端或者服务端
+2、用 hping3 模拟发送 SYN 包
+3、可以用 socat 模拟服务端 (socat TCP-LISTEN:8080,fork,bind=0.0.0.0,backlog=400 -)
 
 ### 2.2.10 其他问题
 
@@ -869,9 +874,9 @@ TLS（传输层安全协议）的握手过程是建立安全连接的关键步�
 - 源地址 hash SH    Source Hashing，实现 session sticky，源 IP 地址 hash；将来自于同一个 IP 地址的请求始终发往 第一次挑中的 RS，从而实现会话绑定
 - 目的地址 hash DH  Destination Hashing；目标地址哈希，第一次轮询调度至 RS，后续将发往同一个目标地址的请 求始终转发至第一次挑中的 RS，典型使用场景是正向代理缓存场景中的负载均衡，如：宽带运营商
 - 最少连接 LC  least connections（最少链接算法）适用于长连接应用 Overhead（负载值）=activeconns（活动链接数） x 256+ inactiveconns（非活 动链接数）
-- 
+-
 - 加权最少链接 WLC  默认调度方法 Overhead=(activeconns x 256+inactiveconns)/weight
-- 
+-
 - 动态调度算法  主要根据 RS 当前的负载状态及调度算法进行调度 Overhead=value 较小的 RS 会被调度
 - SEQ  SED：Shortest Expection Delay（最短期望延迟算法）
   初始连接高权重优先 Overhead=(activeconns+1+inactiveconns) x 256/weight
