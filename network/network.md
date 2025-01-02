@@ -922,13 +922,59 @@ TLS（传输层安全协议）的握手过程是建立安全连接的关键步�
 
   ```
 
-### 3.3 IPSEC VPN
+### 3.3  IPSEC VPN
 
 ## 4、Linux 网络协议栈
+
+### 4.3 网卡子接口
+
+可以在一个网卡上配置多个 IP
+
+```dotnetcli
+  sudo  ip addr   add     10.58.101.224/24   dev   ens3:1
+
+```
 
 ## 5、虚拟化网络
 
 ### 5.1 Bridge
+
+网桥
+
+![1735737538611](image/network/1735737538611.png)
+要想模拟两个容器之间互通，可以创建两个 network namespace  以及 2 个 veth peer 然后
+分别加入到不同的 namespace  这两个 veth 桥接到网桥上
+
+```dotnetcli
+yum install bridge-utils
+ brctl  list
+ brctl  show
+ brctl  addbr  br0
+
+ip addr  add   192.168.252.1/24  dev  br0
+
+ip  link  add  dev  pod1  type  veth   peer name   pod1_p
+
+
+ip  link  add  dev  pod2  type  veth   peer name   pod2_p
+
+
+ip  link  set  netns   net1    pod1
+
+ip  link  set  netns   net2    pod2
+
+
+ip    netns  exec   net1  ip addr  add  192.168.252.252/24   dev pod1
+
+ip    netns  exec   net1  ip addr  add  192.168.252.252/24   dev pod1
+
+ip    netns  exec   net2  ip  link set  pod2  up
+ip    netns  exec   net1  ip  link set  pod1  up
+
+ip  link  set  dev  pod1_p  master  br0
+ip  link  set  dev  pod2_p  master  br0
+
+```
 
 ### 5.2  Virtual  Ethernet (vthe peer)
 
@@ -936,7 +982,7 @@ TLS（传输层安全协议）的握手过程是建立安全连接的关键步�
 
 ### 6.1 docker 网络
 
-docker 的四种网络模型
+Docker 的四种网络模型
 
 - None 用 -net=none 指定
 - Host 用 -net=host 制定
@@ -945,10 +991,88 @@ docker 的四种网络模型
 
 ### 6.2 网络命名空间 NameSpace
 
-### 6.2 pod 网络模型
+```bash
+ip  netns  add  net1
+
+ip  netns  list
+
+
+ ip netns exec net1  route
+
+ip  netns   exec   net1  iptables  -L -t nat
+
+
+[root@10-57-31-214 ~]# ip  netns   exec   net1  iptables  -L -t nat
+Chain PREROUTING (policy ACCEPT)
+target     prot opt source               destination
+
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination
+
+Chain OUTPUT (policy ACCEPT)
+target     prot opt source               destination
+
+Chain POSTROUTING (policy ACCEPT)
+target     prot opt source               destination
+[root@10-57-31-214 ~]# ip  netns   exec   net1  ip  link  list
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+[root@10-57-31-214 ~]#
+
+
+root@10-57-31-214 ~]# ip  netns   exec   net1  ip  link  list
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+[root@10-57-31-214 ~]# ip   link  add  veth1   type  veth  peer  name  veth1_p
+[root@10-57-31-214 ~]# ip link set  veth1  netns   net1
+[root@10-57-31-214 ~]# ip  netns   exec   net1  ip  link  list
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+4: veth1@if3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether de:65:47:65:86:3f brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+[root@10-57-31-214 ~]# ip  link  list
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: ens3: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000
+    link/ether fa:83:9f:4b:72:00 brd ff:ff:ff:ff:ff:ff
+    altname enp0s3
+3: veth1_p@if4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether a6:74:76:be:65:45 brd ff:ff:ff:ff:ff:ff link-netns net1
+
+ip   link  add  veth3   type  veth  peer  name  veth3_p
+
+ip link set  veth3  netns   net2
+
+
+ sudo  ip addr    add    192.168.200.189/24  dev   veth1_p:2
+
+ip netns  exec  net1   ping    192.168.200.189 -I  veth1
+
+ip netns   exec  net2   ip route  show   table  local
+
+ ip netns   exec  net2 ip  link add  veth4  type  veth   peer name  veth4_p
+
+[root@10-57-31-214 ~]# ip netns   exec  net2 ip  link  show
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: veth4_p@veth4: <BROADCAST,MULTICAST,M-DOWN> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 32:e1:61:4f:88:0d brd ff:ff:ff:ff:ff:ff
+3: veth4@veth4_p: <BROADCAST,MULTICAST,M-DOWN> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 26:65:e4:88:ec:85 brd ff:ff:ff:ff:ff:ff
+10: veth3@if9: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether c6:36:c4:3e:d4:36 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+
+ ip netns   exec  net2  ip  link  set   veth4 netns  net1
+
+ip netns   exec  net1  ip  link set   veth4  up
+
+```
+
+### 6.2 Pod 网络模型
 
 - 所有的容器都可以再不用 NAT 的方式下同别的容器通信
 - 所有的节点都可以在不用 NAT 的方式下同所有的容器通信，反之亦然
 - 容器的地址和别人看到的是同一个地址
 
-### 6.3 k8s CNI
+### 6.3 Kubernetes CNI
